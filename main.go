@@ -1,28 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"github.com/ant0ine/go-json-rest/rest"
-	"net/http"
-	"os"
-	"flag"
-	"time"
 	"code.google.com/p/go-uuid/uuid"
+	"flag"
+	"fmt"
+	"github.com/ant0ine/go-json-rest/rest"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"os/exec"
+	"time"
 )
 
 type Command string
 
 const (
 	START_RECORDING Command = "START_RECORDING"
-	STOP_RECORDING Command = "STOP_RECORDING"
+	STOP_RECORDING  Command = "STOP_RECORDING"
 )
 
 type CommandPacket struct {
 	CameraId string
-	Command Command
+	Command  Command
 }
 
 func process(commandChan <-chan CommandPacket, config Configuration) {
@@ -41,7 +41,7 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 						options := []string{
 							"-e",
 							"rtspsrc",
-							"location="+url,
+							"location=" + url,
 							"!",
 							"rtph264depay",
 							"!",
@@ -55,10 +55,10 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 							"webmmux",
 							"!",
 							"filesink",
-							"location="+saveLocation,
+							"location=" + saveLocation,
 						}
 
-						cmd := exec.Command("gst-launch-1.0", options... )
+						cmd := exec.Command("gst-launch-1.0", options...)
 						if err := cmd.Start(); err == nil {
 							currentProcs[pkt.CameraId] = cmd.Process
 						} else {
@@ -81,7 +81,7 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 }
 
 type Message struct {
-    Body string
+	Body string
 }
 
 type Configuration struct {
@@ -92,8 +92,6 @@ func main() {
 	var configLocation string
 	flag.StringVar(&configLocation, "config", "", "config location")
 	flag.Parse()
-
-
 
 	configBytes, err := ioutil.ReadFile(configLocation)
 	if err != nil {
@@ -113,7 +111,6 @@ func main() {
 	process(commandChan, config)
 
 	handler := rest.ResourceHandler{}
-
 
 	err = handler.SetRoutes(
 		&rest.Route{"GET", "/cameras", func(w rest.ResponseWriter, req *rest.Request) {
@@ -139,7 +136,7 @@ func main() {
 			if action == "start" {
 				commandChan <- CommandPacket{
 					CameraId: camera,
-					Command: START_RECORDING,
+					Command:  START_RECORDING,
 				}
 				w.WriteJson(&Message{Body: "OK"})
 				return
@@ -148,7 +145,7 @@ func main() {
 			if action == "stop" {
 				commandChan <- CommandPacket{
 					CameraId: camera,
-					Command: STOP_RECORDING,
+					Command:  STOP_RECORDING,
 				}
 				w.WriteJson(&Message{Body: "OK"})
 				return
