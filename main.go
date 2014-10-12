@@ -70,8 +70,10 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 				if pkt.Command == STOP_RECORDING {
 					if proc, ok := currentProcs[pkt.CameraId]; ok {
 						//TODO: handle errors?
-						proc.Signal(os.Interrupt)
-						proc.Wait()
+						go func() {
+							proc.Signal(os.Interrupt)
+							proc.Wait()
+						}()
 						delete(currentProcs, pkt.CameraId)
 					}
 				}
