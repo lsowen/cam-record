@@ -25,19 +25,23 @@ type CommandPacket struct {
 	Command  Command
 }
 
+type RecordingEntry struct {
+	Process *os.Process
+	Filename string
+}
+
+
 func process(commandChan <-chan CommandPacket, config Configuration) {
 
 	go func() {
-		currentProcs := map[string]*os.Process{}
+		currentProcs := map[string]RecordingEntry{}
 
 		for pkt := range commandChan {
 			if url, ok := config.Cameras[pkt.CameraId]; ok {
 				if pkt.Command == START_RECORDING {
 					if _, ok := currentProcs[pkt.CameraId]; !ok {
-
-						savePath := "/recorder/"
 						filename := time.Now().UTC().Format("2006-01-02-15-04-05") + "_" + pkt.CameraId + "_" + uuid.New() + ".webm"
-						saveLocation := savePath + filename
+						saveLocation := config.SavePath + filename
 						options := []string{
 							"-e",
 							"rtspsrc",
@@ -60,7 +64,14 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 
 						cmd := exec.Command("gst-launch-1.0", options...)
 						if err := cmd.Start(); err == nil {
-							currentProcs[pkt.CameraId] = cmd.Process
+							currentProcs[pkt.CameraId] = RecordingEntry{
+								Process: cmd.Process,
+								Filename: saveLocation,
+							}
+
+							if config.Scripts.RecordStart != "" {
+								exec.Command(config.Scripts.RecordStart, pkt.CameraId, saveLocation).Start()
+							}
 						} else {
 							fmt.Println(err)
 						}
@@ -68,11 +79,14 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 				}
 
 				if pkt.Command == STOP_RECORDING {
-					if proc, ok := currentProcs[pkt.CameraId]; ok {
-						//TODO: handle errors?
+					if entry, ok := currentProcs[pkt.CameraId]; ok {
 						go func() {
-							proc.Signal(os.Interrupt)
-							proc.Wait()
+							entry.Process.Signal(os.Interrupt)
+							entry.Process.Wait()
+
+							if config.Scripts.RecordEnd != "" {
+								exec.Command(config.Scripts.RecordEnd, pkt.CameraId, entry.Filename).Start()
+							}
 						}()
 						delete(currentProcs, pkt.CameraId)
 					}
@@ -88,6 +102,11 @@ type Message struct {
 
 type Configuration struct {
 	Cameras map[string]string
+	SavePath string `yaml:"save_path"`
+	Scripts struct {
+		RecordStart string `yaml:"record_start"`
+		RecordEnd string `yaml:"record_end"`
+	}
 }
 
 func main() {
