@@ -18,18 +18,30 @@ type Command string
 const (
 	START_RECORDING Command = "START_RECORDING"
 	STOP_RECORDING  Command = "STOP_RECORDING"
+	GET_STATUS      Command = "STATUS"
 )
 
+type CameraStatus string
+
+const (
+	STATUS_RECORDING    CameraStatus = "RECORDING"
+	STATUS_NOTRECORDING CameraStatus = "NOT_RECORDING"
+)
+
+type StatusPacket struct {
+	Status CameraStatus
+}
+
 type CommandPacket struct {
-	CameraId string
-	Command  Command
+	CameraId   string
+	Command    Command
+	StatusChan chan<- StatusPacket
 }
 
 type RecordingEntry struct {
-	Process *os.Process
+	Process  *os.Process
 	Filename string
 }
-
 
 func process(commandChan <-chan CommandPacket, config Configuration) {
 
@@ -65,7 +77,7 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 						cmd := exec.Command("gst-launch-1.0", options...)
 						if err := cmd.Start(); err == nil {
 							currentProcs[pkt.CameraId] = RecordingEntry{
-								Process: cmd.Process,
+								Process:  cmd.Process,
 								Filename: saveLocation,
 							}
 
@@ -91,6 +103,19 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 						delete(currentProcs, pkt.CameraId)
 					}
 				}
+
+				if pkt.Command == GET_STATUS {
+					if _, ok := currentProcs[pkt.CameraId]; ok {
+						pkt.StatusChan <- StatusPacket{
+							Status: STATUS_RECORDING,
+						}
+					} else {
+						pkt.StatusChan <- StatusPacket{
+							Status: STATUS_NOTRECORDING,
+						}
+					}
+					close(pkt.StatusChan)
+				}
 			}
 		}
 	}()
@@ -101,11 +126,11 @@ type Message struct {
 }
 
 type Configuration struct {
-	Cameras map[string]string
+	Cameras  map[string]string
 	SavePath string `yaml:"save_path"`
-	Scripts struct {
+	Scripts  struct {
 		RecordStart string `yaml:"record_start"`
-		RecordEnd string `yaml:"record_end"`
+		RecordEnd   string `yaml:"record_end"`
 	}
 }
 
@@ -169,6 +194,19 @@ func main() {
 					Command:  STOP_RECORDING,
 				}
 				w.WriteJson(&Message{Body: "OK"})
+				return
+			}
+
+			if action == "status" {
+				statusChan := make(chan StatusPacket)
+				commandChan <- CommandPacket{
+					CameraId:   camera,
+					Command:    GET_STATUS,
+					StatusChan: statusChan,
+				}
+
+				status := <-statusChan
+				w.WriteJson(&status)
 				return
 			}
 

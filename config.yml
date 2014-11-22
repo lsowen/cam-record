@@ -1,0 +1,8 @@
+cameras:
+  camera01: "rtsp://camera01.example.com:554/cam/realmonitor?channel=1&subtype=0"
+  camera02: "rtsp://camera02.example.com:554/cam/realmonitor?channel=1&subtype=0"
+  camera03: "rtsp://camera03.example.com:554/cam/realmonitor?channel=1&subtype=0"
+save_path: "/recorded-files/"
+scripts:
+  record_start: "/local-bin/record_start.sh"
+  record_end: "/local-bin/record_end.sh"
