@@ -82,7 +82,9 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 							}
 
 							if config.Scripts.RecordStart != "" {
-								exec.Command(config.Scripts.RecordStart, pkt.CameraId, saveLocation).Start()
+								go func() {
+									exec.Command(config.Scripts.RecordStart, pkt.CameraId, saveLocation).Run()
+								}()
 							}
 						} else {
 							fmt.Println(err)
@@ -97,7 +99,9 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 							entry.Process.Wait()
 
 							if config.Scripts.RecordEnd != "" {
-								exec.Command(config.Scripts.RecordEnd, pkt.CameraId, entry.Filename).Start()
+								go func() {
+									exec.Command(config.Scripts.RecordEnd, pkt.CameraId, entry.Filename).Run()
+								}()
 							}
 						}()
 						delete(currentProcs, pkt.CameraId)
