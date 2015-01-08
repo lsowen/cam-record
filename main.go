@@ -94,7 +94,7 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 
 				if pkt.Command == STOP_RECORDING {
 					if entry, ok := currentProcs[pkt.CameraId]; ok {
-						go func() {
+						go func(config Configuration, pkt CommandPacket, entry RecordingEntry) {
 							entry.Process.Signal(os.Interrupt)
 							entry.Process.Wait()
 
@@ -103,7 +103,7 @@ func process(commandChan <-chan CommandPacket, config Configuration) {
 									exec.Command(config.Scripts.RecordEnd, pkt.CameraId, entry.Filename).Run()
 								}()
 							}
-						}()
+						}(config, pkt, entry)
 						delete(currentProcs, pkt.CameraId)
 					}
 				}
