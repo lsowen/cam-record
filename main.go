@@ -139,8 +139,9 @@ type Configuration struct {
 }
 
 func main() {
-	var configLocation string
+	var configLocation, listenOn string
 	flag.StringVar(&configLocation, "config", "", "config location")
+	flag.StringVar(&listenOn, "listen", ":8080", "IP/port to listen on")
 	flag.Parse()
 
 	configBytes, err := ioutil.ReadFile(configLocation)
@@ -227,5 +228,5 @@ func main() {
 
 	api.SetApp(router)
 
-	http.ListenAndServe(":8080", api.MakeHandler())
+	http.ListenAndServe(listenOn, api.MakeHandler())
 }
