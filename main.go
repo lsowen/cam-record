@@ -160,10 +160,11 @@ func main() {
 
 	process(commandChan, config)
 
-	handler := rest.ResourceHandler{}
+	api := rest.NewApi()
+	api.Use(rest.DefaultDevStack...)
 
-	err = handler.SetRoutes(
-		&rest.Route{"GET", "/cameras", func(w rest.ResponseWriter, req *rest.Request) {
+	router, err := rest.MakeRouter(
+		rest.Get("/cameras", func(w rest.ResponseWriter, req *rest.Request) {
 			response := make([]string, len(config.Cameras))
 			idx := 0
 			for c := range config.Cameras {
@@ -171,9 +172,9 @@ func main() {
 				idx++
 			}
 			w.WriteJson(response)
-		}},
+		}),
 
-		&rest.Route{"GET", "/:camera/:action", func(w rest.ResponseWriter, req *rest.Request) {
+		rest.Get("/:camera/:action", func(w rest.ResponseWriter, req *rest.Request) {
 
 			camera := req.PathParam("camera")
 
@@ -216,10 +217,15 @@ func main() {
 
 			rest.Error(w, "action not recognized", 400)
 			return
-		}},
+		}),
 	)
 
-	if err == nil {
-		http.ListenAndServe(":8080", &handler)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+
+	api.SetApp(router)
+
+	http.ListenAndServe(":8080", api.MakeHandler())
 }
